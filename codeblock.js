@@ -4,7 +4,7 @@ let css = `
     box-sizing: border-box;
     width: 100%;
     flex: none;
-    padding: 10px;
+    padding: 5px;
     
     background-color: #00000000;
     font-size: 14px;
@@ -60,7 +60,7 @@ let syntax;
 self.addEventListener('message', function (e) {
     // Send the message back.
     syntax = e.data.syntax;
-    self.postMessage(dostuff(e.data.text));
+    self.postMessage( {text: dostuff(e.data.text), id: e.data.id});
 }, false);
 
 function dostuff(actualtext) {
@@ -147,7 +147,7 @@ var worker = new Worker(URL.createObjectURL(blob));
 worker.addEventListener('message', function a(e) {
 
     // Add the colored text to the overlay
-    overlay.html(e.data);
+    overlays[e.data.id].html(e.data.text);
 }, false);
 
 // Determines if given variable is a valid syntax
@@ -175,13 +175,13 @@ $.fn.setText = function (input) {
 
         let text = $(this).find(".codeblock-text");
         text.html(input.replace(/\n/g, "<br>").replace(/\ /g, "&nbsp;"));
-        $(this).refreshColors()
+        $(this).refreshColors();
     });
     return $(this);
 };
 
 // Refreshes the colors of the text
-let overlay; // overlay is global since we need it in the 'message' event listener for the webworker
+let overlays = []; // overlay is global since we need it in the 'message' event listener for the webworker
 $.fn.refreshColors = function () {
     this.each(function () {
         if (!$(this).hasClass("codeblock")) return;
@@ -189,7 +189,7 @@ $.fn.refreshColors = function () {
         // Get the targeted codeblock text and overlay span
         let codeblock = $(this);
         let text = codeblock.find(".codeblock-text");
-        overlay = codeblock.find(".codeblock-overlay").eq(0);
+        let overlay = codeblock.find(".codeblock-overlay").eq(0);
 
         // Set the syntax to the standard and check if another was given
         let syntax = [];
@@ -201,31 +201,24 @@ $.fn.refreshColors = function () {
             }
         }
 
+        // Stuff that makes it work
+        id = Math.random();
+        overlays[id] = overlay;
+
         // handle the color adding using a webworker
         worker.postMessage({
             text: text[0].innerText,
-            syntax: syntax
+            syntax: syntax,
+            id: id
         });
     });
 };
 
-$(findCodeblocks);
-
-
-$(() => {
-    // Add styles
-    var styles = document.createElement('style');
-    styles.innerHTML = css;
-    document.head.appendChild(styles);
-});
-
-function findCodeblocks() {
-
-    // Add actual textarea and color overlay to the codeblocks
-    let codeblocks = $('.codeblock');
-    for (let i = 0; i < codeblocks.length; i++) {
-        let codeblock = codeblocks[i];
-        let editable = codeblocks.eq(i).attr("editable") === "true";
+$.fn.loadCodeblock = function () {
+    this.each(function () {
+        if (!$(this).hasClass("codeblock")) return;
+        let codeblock = this;
+        let editable = $(this).attr("editable") === "true";
 
         // Make contenteditable span
         var text = document.createElement('span');
@@ -244,24 +237,35 @@ function findCodeblocks() {
         codeblock.appendChild(text);
         codeblock.appendChild(overlay);
         $(codeblock).refreshColors();
-    }
+        $(codeblock).on('keydown', function (e) {
 
-    // Filter some incoming key events out.
-    $('.codeblock').on('keydown', function (e) {
-
-        // For some reason stuff breaks when you press these keys, so just ignore them
-        if (e.keyCode == 13 && (e.ctrlKey || e.shiftKey)) {
-            return false;
-        }
-        if (e.keyCode === 9) {
-            document.execCommand('insertText', false, '\t');
-            return false;
-        }
+            // For some reason stuff breaks when you press these keys, so just ignore them
+            if (e.keyCode == 13 && (e.ctrlKey || e.shiftKey)) {
+                return false;
+            }
+            if (e.keyCode === 9) {
+                document.execCommand('insertText', false, '\t');
+                return false;
+            }
+        });
+        $(codeblock).on('input', e => {
+            $(e.target.parentNode).refreshColors();
+        });
     });
+};
 
-    // Format text on input event
-    $('.codeblock').on('input', e => $(e.target.parentElement).refreshColors());
-}
+$(() => {
+    // Add styles
+    var styles = document.createElement('style');
+    styles.innerHTML = css;
+    document.head.appendChild(styles);
+
+    // Add actual textarea and color overlay to the codeblocks
+    let codeblocks = $('.codeblock');
+    for (let i = 0; i < codeblocks.length; i++) {
+        codeblocks.eq(i).loadCodeblock();
+    }
+});
 
 var java = [{
         'color': "rgb(128, 128, 128)",
