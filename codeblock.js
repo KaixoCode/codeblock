@@ -1,12 +1,11 @@
 // CSS properties
 let css = `
 .codeblock-text, .codeblock-overlay {
-    position: absolute;
-
-    min-width: 100%;
-    min-height: 100%;
-
+    box-sizing: border-box;
+    width: 100%;
+    flex: none;
     padding: 10px;
+    
     background-color: #00000000;
     font-size: 14px;
     font-family: monospace;
@@ -14,7 +13,7 @@ let css = `
     tab-size: 4;
 
     border: none;
-    overflow: auto;
+    overflow: visible;
     outline: none;
     line-height: 1.3em;
 
@@ -36,18 +35,17 @@ let css = `
 }
 
 .codeblock-overlay {
+    margin-left: -100%;
     z-index: 9;
-    position: absolute;
     pointer-events: none;
-    color: white; 
+    color: black;
     opacity: 1;
+    user-select: none;
 }
-
 .codeblock {
-    padding:0px;
-    min-width: 10px;
-    min-height: 10px;
-    position: relative; 
+    display: flex;
+    flex-flow: row nowrap;
+    padding: 0px;
     background-color: #444;
     overflow: auto;
 }`;
@@ -211,12 +209,17 @@ $.fn.refreshColors = function () {
     });
 };
 
-$(() => {
+$(findCodeblocks);
 
+
+$(() => {
     // Add styles
     var styles = document.createElement('style');
     styles.innerHTML = css;
     document.head.appendChild(styles);
+});
+
+function findCodeblocks() {
 
     // Add actual textarea and color overlay to the codeblocks
     let codeblocks = $('.codeblock');
@@ -258,7 +261,7 @@ $(() => {
 
     // Format text on input event
     $('.codeblock').on('input', e => $(e.target.parentElement).refreshColors());
-});
+}
 
 var java = [{
         'color': "rgb(128, 128, 128)",
